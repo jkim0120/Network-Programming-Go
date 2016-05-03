@@ -3,11 +3,31 @@ package main
 import (
   "fmt"
   "io/ioutil"
+  "net/http"
 )
 
 type Page struct {
   Title string
   Body []byte
+}
+
+type wikiHandler struct {}
+
+func (*wikiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+  if handler, ok := mux[r.URL.String()]; ok {
+    handler(w, r)
+    return
+  }
+
+  viewHandler(w, r)
+}
+
+var mux map[string]func(http.ResponseWriter, *http.Request)
+
+func viewHandler(w http.ResponseWriter, r *http.Request) {
+  title := r.URL.Path[len("/view/"):]
+  p, _ := loadPage(title)
+  fmt.Fprintf(w, "<h1>%s</h1><div>%s</div>", p.Title, p.Body)
 }
 
 func (p *Page) save() error {
@@ -26,11 +46,13 @@ func loadPage(title string) (*Page, error) {
 }
 
 func main() {
-  p1 := &Page{
-    Title: "FirstPost",
-    Body: []byte("This is a string being encoded!"),
+  server := http.Server {
+    Addr: ":8080",
+    Handler: &wikiHandler{},
   }
-  p1.save()
-  p2, _ := loadPage("FirstPost")
-  fmt.Println(string(p2.Body))
+
+  mux := make(map[string]func(http.ResponseWriter, *http.Request))
+  mux["/view/"] = viewHandler
+
+  server.ListenAndServe()
 }

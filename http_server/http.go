@@ -5,7 +5,7 @@ import (
   "net/http"
 )
 
-type myHandler struct{}
+type myHandler struct {}
 
 func (*myHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   if handler, ok := mux[r.URL.String()]; ok {
