@@ -26,6 +26,8 @@ func (*wikiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
       viewHandler(w, r)
     case "edit":
       editHandler(w, r)
+    case "save":
+      saveHandler(w, r)
   }
 }
 
@@ -55,6 +57,17 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
   renderTemplate(w, "edit", p)
 }
 
+func saveHandler(w http.ResponseWriter, r *http.Request) {
+  title := r.URL.Path[len("/save/"):]
+  body := r.FormValue("body")
+  p := &Page{
+    Title: title,
+    Body: []byte(body),
+  }
+  p.save()
+  http.Redirect(w, r, "/view/" + title, http.StatusFound)
+}
+
 func (p *Page) save() error {
   filename := p.Title + ".txt"
   return ioutil.WriteFile(filename, p.Body, 0600)
@@ -79,7 +92,7 @@ func main() {
   mux := make(map[string]func(http.ResponseWriter, *http.Request))
   mux["/view/"] = viewHandler
   mux["/edit/"] = editHandler
-  // mux["/save/"] = saveHandler
+  mux["/save/"] = saveHandler
 
   server.ListenAndServe()
 }
