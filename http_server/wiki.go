@@ -1,7 +1,8 @@
 package main
 
 import (
-  "fmt"
+  "strings"
+  "html/template"
   "io/ioutil"
   "net/http"
 )
@@ -19,15 +20,39 @@ func (*wikiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  viewHandler(w, r)
+  action := strings.Split(r.URL.Path, "/")
+  switch action[1] {
+    case "view":
+      viewHandler(w, r)
+    case "edit":
+      editHandler(w, r)
+  }
 }
 
 var mux map[string]func(http.ResponseWriter, *http.Request)
 
+func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+  t, _ := template.ParseFiles(tmpl + ".html")
+  t.Execute(w, p)
+}
+
 func viewHandler(w http.ResponseWriter, r *http.Request) {
   title := r.URL.Path[len("/view/"):]
-  p, _ := loadPage(title)
-  fmt.Fprintf(w, "<h1>%s</h1><div>%s</div>", p.Title, p.Body)
+  p, err := loadPage(title)
+  if err != nil {
+    http.Redirect(w, r, "/edit/" + title, http.StatusFound)
+    return
+  }
+  renderTemplate(w, "view", p)
+}
+
+func editHandler(w http.ResponseWriter, r *http.Request) {
+  title := r.URL.Path[len("/edit/"):]
+  p, err := loadPage(title)
+  if err != nil {
+    p = &Page{Title: title}
+  }
+  renderTemplate(w, "edit", p)
 }
 
 func (p *Page) save() error {
@@ -53,6 +78,8 @@ func main() {
 
   mux := make(map[string]func(http.ResponseWriter, *http.Request))
   mux["/view/"] = viewHandler
+  mux["/edit/"] = editHandler
+  // mux["/save/"] = saveHandler
 
   server.ListenAndServe()
 }
